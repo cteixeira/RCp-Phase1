@@ -2,7 +2,7 @@
   "profiles": {
     "RCp-Phase1": {
       "commandName": "Project",
-      "commandLineArgs": "http://85.88.136.64/"
+      "commandLineArgs": "http://localhost"
     }
   }
 }
