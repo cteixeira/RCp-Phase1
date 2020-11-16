@@ -3,12 +3,14 @@ using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Linq;
+using System.Collections;
 
 namespace RCp_Phase1 {
     static class Program {
 
         private static string HTTP_CODE_PERM_REDIRECT = "301";
         private static string HTTP_CODE_TEMP_REDIRECT = "302";
+        private static readonly ArrayList MyResponses = new ArrayList();
 
         public static void Main(string[] args)
         {
@@ -17,9 +19,16 @@ namespace RCp_Phase1 {
 
             try
             {
-                var uri = new Uri(args[0]);
-                string result = ManageRequest(uri);
-                Console.WriteLine(result);
+                Console.WriteLine("Enter IP address: xxx.xxx.xxx.xxx");
+                var ipAddress = "https://" + Console.ReadLine();
+                var uri = new Uri(ipAddress);
+                ManageRequest(uri);
+                foreach (var resp in MyResponses)
+                {
+                    Console.WriteLine("--- HTTP Response ---");
+                    Console.WriteLine(resp);
+                }
+                    
             }
             catch (Exception ex) {
                 Console.WriteLine($"As error has ocurred: {ex}");
@@ -28,30 +37,28 @@ namespace RCp_Phase1 {
             Console.Read();
         }
 
-        private static string ManageRequest(Uri uri)
+        private static void ManageRequest(Uri uri)
         {
-            string host = resolveName(uri.Host);
-            string path = uri.AbsolutePath;
-            int port = uri.Port;
+            var host = ResolveName(uri.Host);
+            var path = uri.AbsolutePath;
+            var port = uri.Port;
             string httpCode, response;
 
             do {
                 response = SendRequest(host, path, port);
-
+                MyResponses.Add(response);
                 var lines = response.Split("\r\n");
                 httpCode = lines[0].Split(" ")[1];
-
+                
                 if (httpCode == HTTP_CODE_TEMP_REDIRECT || httpCode == HTTP_CODE_PERM_REDIRECT) {
                     //make request to the new location
                     var redirectUri = new Uri(lines.First(s => s.StartsWith("location", StringComparison.OrdinalIgnoreCase)).Split(" ")[1]);
-                    host = resolveName(redirectUri.Host);
+                    host = ResolveName(redirectUri.Host);
                     path = redirectUri.AbsolutePath;
                     port = redirectUri.Port;
                 }
 
             } while (httpCode == HTTP_CODE_TEMP_REDIRECT || httpCode == HTTP_CODE_PERM_REDIRECT);
-
-            return response;
         }
 
         private static string SendRequest(string host, string path, int port) {
@@ -63,13 +70,13 @@ namespace RCp_Phase1 {
                     throw new Exception("Connection failed");
 
                 // Send request to the server.
-                string request = $"GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n";
+                var request = $"GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n";
                 var bytesSent = Encoding.ASCII.GetBytes(request);
                 var bytesReceived = new byte[256];
                 socket.Send(bytesSent, bytesSent.Length, 0);
 
                 // The following will block until the page is received.
-                string response = string.Empty; int bytes;
+                var response = string.Empty; int bytes;
                 do {
                     bytes = socket.Receive(bytesReceived, bytesReceived.Length, 0);
                     response += Encoding.ASCII.GetString(bytesReceived, 0, bytes);
@@ -80,7 +87,7 @@ namespace RCp_Phase1 {
             }
         }
 
-        private static string resolveName(string host) { 
+        private static string ResolveName(string host) { 
             return Dns.GetHostEntry(host)
                                 .AddressList
                                 .First(a => a.AddressFamily == AddressFamily.InterNetwork)
